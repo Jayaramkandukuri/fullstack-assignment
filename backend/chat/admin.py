@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 from nested_admin.nested import NestedModelAdmin, NestedStackedInline, NestedTabularInline
-
+from django.utils.html import format_html
 from chat.models import Conversation, Message, Role, Version
 
 
@@ -51,8 +51,8 @@ class DeletedListFilter(admin.SimpleListFilter):
 class ConversationAdmin(NestedModelAdmin):
     actions = ["undelete_selected", "soft_delete_selected"]
     inlines = [VersionInline]
-    list_display = ("title", "id", "created_at", "modified_at", "deleted_at", "version_count", "is_deleted", "user")
-    list_filter = (DeletedListFilter,)
+    list_display = ("title", "id", "created_at", "modified_at", "deleted_at", "version_count", "is_deleted",  "has_summary", "summary_status", "user")
+    list_filter = (DeletedListFilter,"is_summary_stale",)
     ordering = ("-modified_at",)
 
     def undelete_selected(self, request, queryset):
@@ -79,7 +79,27 @@ class ConversationAdmin(NestedModelAdmin):
 
     is_deleted.boolean = True
     is_deleted.short_description = "Deleted?"
+    def has_summary(self, obj):
+        """Display if conversation has summary"""
+        if obj.summary:
+            return format_html(
+                '<span style="color: green;">✓ Has Summary</span>'
+            )
+        return format_html(
+            '<span style="color: red;">✗ No Summary</span>'
+        )
+    has_summary.short_description = "Summary Status"
 
+    def summary_status(self, obj):
+        """Show if summary is stale"""
+        if obj.is_summary_stale:
+            return format_html(
+                '<span style="color: orange;">Stale</span>'
+            )
+        return format_html(
+            '<span style="color: green;">Current</span>'
+        )
+    summary_status.short_description = "Summary Freshness"
 
 class VersionAdmin(NestedModelAdmin):
     inlines = [MessageInline]

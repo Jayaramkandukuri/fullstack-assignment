@@ -1,6 +1,8 @@
 from django.urls import path
+from rest_framework.routers import DefaultRouter
 
 from chat import views
+
 
 urlpatterns = [
     path("", views.chat_root_view, name="chat_root_view"),
@@ -20,3 +22,12 @@ urlpatterns = [
     path("conversations/<uuid:pk>/delete/", views.conversation_soft_delete, name="conversation_delete"),
     path("versions/<uuid:pk>/add_message/", views.version_add_message, name="version_add_message"),
 ]
+
+# router for viewsets (summaries, file uploads)
+router = DefaultRouter()
+router.register(r"summaries", views.ConversationSummaryViewSet, basename="conversation-summary")
+router.register(r"files", views.UploadedFileViewSet, basename="uploadedfile")
+
+# append router-generated urls at the end so they don't conflict with the custom
+# function-based endpoints defined above
+urlpatterns += router.urls

@@ -4,10 +4,19 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from chat.models import Conversation, Message, Version
+from chat.models import Conversation, Message, Version, UploadedFile
 from chat.serializers import ConversationSerializer, MessageSerializer, TitleSerializer, VersionSerializer
 from chat.utils.branching import make_branched_conversation
+from rest_framework.pagination import PageNumberPagination
+from rest_framework import viewsets, permissions
+from django.db.models import Q
+from .models import Conversation
+from .serializers import ConversationSummarySerializer, UploadedFileSerializer
 
+class StandardPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
 
 @api_view(["GET"])
 def chat_root_view(request):
@@ -230,3 +239,68 @@ def version_add_message(request, pk):
             status=status.HTTP_201_CREATED,
         )
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+
+class ConversationSummaryViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ConversationSummarySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardPagination
+
+    def get_queryset(self):
+        queryset = Conversation.objects.filter(
+            user=self.request.user
+        )
+
+        has_summary = self.request.query_params.get("has_summary")
+        if has_summary == "true":
+            queryset = queryset.filter(summary__isnull=False)
+        elif has_summary == "false":
+            queryset = queryset.filter(summary__isnull=True)
+
+        is_stale = self.request.query_params.get("is_stale")
+        if is_stale == "true":
+            queryset = queryset.filter(is_summary_stale=True)
+        elif is_stale == "false":
+            queryset = queryset.filter(is_summary_stale=False)
+
+        search = self.request.query_params.get("search")
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(summary__icontains=search)
+            )
+
+        return queryset.order_by("-created_at")
+
+
+class UploadedFileViewSet(viewsets.ModelViewSet):
+    """CRUD operations for user-uploaded files.
+
+    * POST /files/          -> upload new file with duplicate prevention
+    * GET  /files/          -> list user's files (pagination supported)
+    * GET  /files/{pk}/     -> retrieve metadata for a single file
+    * DELETE /files/{pk}/   -> delete file record and remove file from storage
+    """
+
+    serializer_class = UploadedFileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = StandardPagination
+
+    def get_queryset(self):
+        qs = UploadedFile.objects.filter(user=self.request.user)
+        # optional filtering by conversation
+        conv = self.request.query_params.get("conversation_id")
+        if conv:
+            qs = qs.filter(conversation__id=conv)
+        return qs.order_by("-uploaded_at")
+
+    def perform_create(self, serializer):
+        # the serializer's create() method will attach the user and metadata
+        serializer.save()
+
+    def destroy(self, request, *args, **kwargs):
+        # remove the actual file from disk/storage before deleting the DB record
+        instance = self.get_object()
+        instance.file.delete(save=False)
+        return super().destroy(request, *args, **kwargs)

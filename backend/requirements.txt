@@ -1,0 +1,79 @@
+# =========================
+# Core Django & REST
+# =========================
+Django==4.2.7
+djangorestframework==3.14.0
+django-cors-headers==4.3.1
+django-filter==23.4
+django-extensions==3.2.3
+
+# =========================
+# Database (PostgreSQL)
+# =========================
+psycopg2-binary==2.9.9
+
+# =========================
+# Caching & Background Tasks
+# =========================
+redis==5.0.1
+django-redis==5.4.0
+celery==5.3.4
+django-celery-beat==2.5.0
+django-celery-results==2.5.1
+
+# =========================
+# Authentication & API Docs
+# =========================
+djangorestframework-simplejwt==5.4.0
+drf-spectacular==0.26.5
+PyJWT==2.8.1
+
+# =========================
+# File Handling
+# =========================
+pillow==10.1.0
+
+# =========================
+# AI / Summary Generation
+# =========================
+openai==0.27.8
+
+# =========================
+# Utilities
+# =========================
+python-dotenv==1.0.0
+python-decouple==3.8
+python-dateutil==2.8.2
+requests==2.31.0
+
+# =========================
+# Logging & Monitoring
+# =========================
+sentry-sdk==1.38.0
+
+# =========================
+# Security
+# =========================
+cryptography==41.0.7
+
+# =========================
+# Testing
+# =========================
+pytest==7.4.3
+pytest-django==4.7.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+faker==21.0.0
+
+# =========================
+# Code Quality
+# =========================
+black==23.12.0
+flake8==6.1.0
+isort==5.13.2
+
+# =========================
+# Production Server
+# =========================
+gunicorn==21.2.0
+uvicorn==0.24.0

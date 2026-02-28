@@ -15,17 +15,19 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-load_dotenv()
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
-FRONTEND_URL = os.environ["FRONTEND_URL"]
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "fallback-secret-key") 
+print("SECRET:", os.environ.get("DJANGO_SECRET_KEY"))   
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -85,9 +87,13 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'chatgpt_db',
+        'USER': 'chatgpt_user',
+        'PASSWORD': 'chatgpt_password',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
 
@@ -149,3 +155,13 @@ CSRF_TRUSTED_ORIGINS = [
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_SAMESITE = "None"
+
+# Celery Configuration
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes

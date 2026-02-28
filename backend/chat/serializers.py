@@ -4,6 +4,9 @@ from rest_framework import serializers
 
 from chat.models import Conversation, Message, Role, Version
 
+# file upload related serializer
+from chat.models import UploadedFile
+
 
 def should_serialize(validated_data, field_name) -> bool:
     if validated_data.get(field_name) is not None:
@@ -150,3 +153,95 @@ class ConversationSerializer(serializers.ModelSerializer):
                 version_serializer.save(conversation=instance)
 
         return instance
+
+
+class ConversationSummarySerializer(serializers.ModelSerializer):
+    message_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Conversation
+        fields = [
+            'id',
+            'title',
+            'summary',
+            'summary_generated_at',
+            'is_summary_stale',
+            'message_count',
+            'created_at',
+        ]
+
+    def get_message_count(self, obj):
+        from chat.models import Message
+        return Message.objects.filter(
+            version__conversation=obj
+        ).count()
+
+
+class UploadedFileSerializer(serializers.ModelSerializer):
+    """Serializer for UploadedFile model.
+
+    When a file is provided we calculate its hash and check for duplicates so
+    the same file cannot be uploaded more than once.  Some metadata is also
+    populated automatically (filename, size, type, owner).
+    """
+
+    class Meta:
+        model = UploadedFile
+        # expose all relevant metadata fields so the frontend can render them
+        fields = [
+            "id",
+            "user",
+            "conversation",
+            "file",
+            "filename",
+            "file_size",
+            "file_type",
+            "file_hash",
+            "status",
+            "uploaded_at",
+            "processed_at",
+            "error_message",
+            "mime_type",
+            "page_count",
+            "is_indexed",
+        ]
+        read_only_fields = [
+            "id",
+            "user",
+            "file_hash",
+            "status",
+            "uploaded_at",
+            "processed_at",
+            "error_message",
+            "mime_type",
+            "page_count",
+            "is_indexed",
+        ]
+
+    def validate_file(self, value):
+        """Compute SHA256 of the incoming file and reject duplicates."""
+        # calculate and then rewind pointer so the same file object can still be
+        # saved by Django's storage backend
+        file_hash = UploadedFile.calculate_file_hash(value)
+        value.seek(0)
+        if UploadedFile.objects.filter(file_hash=file_hash).exists():
+            raise serializers.ValidationError("A file with the same content has already been uploaded.")
+        return value
+
+    def create(self, validated_data):
+        # automatically populate some meta fields that the client doesn't need
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            validated_data["user"] = request.user
+
+        file_obj = validated_data.get("file")
+        if file_obj:
+            validated_data["filename"] = file_obj.name
+            validated_data["file_size"] = file_obj.size
+            # simple type extraction based on extension
+            if "." in file_obj.name:
+                validated_data["file_type"] = file_obj.name.rsplit('.', 1)[1]
+            else:
+                validated_data["file_type"] = ""
+
+        return super().create(validated_data)
